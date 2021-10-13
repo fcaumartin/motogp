@@ -5,8 +5,10 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Document</title>
-    <link rel="stylesheet" href="//cdn.jsdelivr.net/chartist.js/latest/chartist.min.css">
-    <script src="//cdn.jsdelivr.net/chartist.js/latest/chartist.min.js"></script>
+    <!-- <link rel="stylesheet" href="//cdn.jsdelivr.net/chartist.js/latest/chartist.min.css"> -->
+    <!-- <script src="//cdn.jsdelivr.net/chartist.js/latest/chartist.min.js"></script> -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.5.1/chart.min.js"></script>
+    
 </head>
 <body>
 
@@ -17,12 +19,14 @@
 
         $gps = get_gps($pool);
 
-        $res = get_pilots($pool);
-        // dump($res);
+        $pilots = get_data($pool, "pilot");
+        $teams = get_data($pool, "team");
+        $constructors = get_data($pool, "constructor");
+        dump($teams);
 
         $series = [];
-        for ($i=0; $i < 10; $i++) { 
-            $series[] = get_pilots_results($pool, $res[$i]);
+        for ($i=0; $i < 6; $i++) { 
+            $series[] = get_results($pool, "team", $teams[$i]);
         }
         // dump($series);
         //arsort($res);
@@ -33,42 +37,37 @@
         // dump($res);
 
     ?>
-    <div class="ct-chart ct-perfect-fourth"></div>
+    <canvas id="myChart" width="400" height="400"></canvas>
+
 </body>
 </html>
 
+
 <script>
-var data = {
-  // A labels array that can contain any sort of values
-  labels: <?= json_encode($gps) ?>,
-  // Our series array that contains series objects or in this case series data arrays
-  series: [
-    <?php foreach($series as $serie): ?>
-        <?= json_encode($serie) ?>,
-    <?php endforeach; ?>
+var ctx = document.getElementById('myChart');
 
-  ]
-};
-
-// Create a new line chart object where as first parameter we pass in a selector
-// that is resolving to our chart container element. The Second parameter
-// is the actual data object.
-new Chartist.Line('.ct-chart', data, {
-        high: 330,
+var myChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+        labels: ['Red', 'Blue', 'Yellow', 'Green', 'Purple', 'Orange'],
+        datasets: [{
+            label: '# of Votes',
+            data: [12, 19, 3, 5, 2, 3],
+            borderWidth: 1
+        },
+        {
+            label: '# of Votes',
+            data: [5, 4, 30, 55, 2, 3],
+            borderWidth: 1
+        }]
+    },
+    options: {
         scales: {
             y: {
-                title: {
-                    display: true,
-                    text: 'Value'
-                },
-                min: 0,
-                max: 200,
-                ticks: {
-                // forces step size to be 50 units
-                    stepSize: 10
-                }
+                beginAtZero: true
             }
         }
+    }
 });
 </script>
 
@@ -133,22 +132,25 @@ function get_data_by_gp($p, $key) {
         foreach ($result as $line) {
             $n = $line[$key];
             $p = $line["points"];
-            $res[$gp_name][$n] = $p;
+            if (!array_key_exists($gp_name, $res)) $res[$gp_name] = [];
+            if (!array_key_exists($n, $res[$gp_name])) $res[$gp_name][$n] = 0;
+            $res[$gp_name][$n] += intval($p);
         }
     }
 
     return $res;
 }
 
-function get_pilots($p) {
+function get_data($p, $key) {
 
     $res = [];
 
-    $data = get_data_by_gp($p, "pilot");
+    $data = get_data_by_gp($p, $key);
 
     foreach ($data as $gp_name => $result) {
-        foreach ($result as $pilot => $points) {
-            $res[$pilot] += $points;
+        foreach ($result as $elt => $points) {
+            if (!array_key_exists($elt, $res)) $res[$elt] = 0;
+            $res[$elt] += $points?$points:0;
         }
     }
 
@@ -157,17 +159,17 @@ function get_pilots($p) {
     return array_keys($res);
 }
 
-function get_pilots_results($pool, $pilot) {
+function get_results($pool, $key, $search) {
 
     $res = [];
 
-    $data = get_data_by_gp($pool, "pilot");
+    $data = get_data_by_gp($pool, $key);
 
     $res2 = [];
     $total = 0;
     foreach ($data as $result) {
-        if (array_key_exists($pilot, $result)) {
-            $v = $result[$pilot];
+        if (array_key_exists($search, $result)) {
+            $v = $result[$search]?$result[$search]:0;
         }
         else {
             $v = 0;
